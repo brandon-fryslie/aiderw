@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+
+# Allow skipping the wrapper logic entirely
+# Users can also just enter \aider in the terminal, if this is installed as aiderw and 'alias aider=aiderw' is used
+[[ "$1" == "--bare" ]] && { shift; \aider "$@"; exit $?; }
+
+# Exit on error
+set -e
+
+# Setup script_dir
+# WARNING: THIS MAY ONLY WORK ON MACOS
+# TODO: Simply, short, cross platform, dependency-free way of resolving symlink on all OS's
+script_dir="$(dirname "$(readlink "$0")")"
+
+_log() {
+  echo -e "\e[33maiderw:\e[0m $1"
+}
+
+# Trap: Print command that caused exit
+cleanup() {
+  local exit_code=$1
+  local previous_command=$BASH_COMMAND
+  [[ $exit_code -ne 0 ]] && [[ ! $previous_command =~ exit* ]] && echo "ERROR: Script exited with code $exit_code from command $previous_command"
+  exit $exit_code
+}
+trap 'cleanup $?' EXIT
+
+### Helper fns
+
+# prompt a user for yes or no, and force em to make a valid choice
+prompt_yes_no() (
+  local prompt_message="$1"
+  local response
+  while true; do
+    read -p "$(_log "$prompt_message (y/n): ")" response
+    case "$response" in
+      [Yy]* ) return 0;;
+      [Nn]* ) return 1;;
+      * ) _log "Please answer yes or no.";;
+    esac
+  done
+)
+
+change_to_git_root() {
+  if git rev-parse --is-inside-work-tree &>/dev/null; then
+    cd "$(git rev-parse --show-toplevel)"
+  fi
+}
+
+move_aider_files() {
+  # make .aider dir
+  mkdir -p .aider
+
+  # Move aider files into .aider
+  for file in .aider*
+  do
+    [[ -f $file && $file != ".aider.conf.yml" ]] && mv -f "$file" ".aider/${file#.}"
+  done
+}
+
+# Default indicators for a project root
+DEFAULT_INDICATORS=(
+  "setup.py" "pyproject.toml" "requirements.txt"  # Python
+  "package.json" "yarn.lock"                      # JavaScript/Node.js
+  "pom.xml" "build.gradle"                        # Java
+  "CMakeLists.txt" "Makefile"                     # C/C++
+  "Gemfile" "Rakefile"                            # Ruby
+  "composer.json"                                 # PHP
+  "go.mod"                                        # Go
+  "Cargo.toml"                                    # Rust
+  ".csproj" "global.json"                         # .NET/C#
+  "Package.swift"                                 # Swift
+  "stack.yaml" "cabal.project"                    # Haskell
+  "mix.exs"                                       # Elixir
+  "pubspec.yaml"                                  # Dart
+  "build.gradle.kts"                              # Kotlin
+)
+
+# Function to guess whether the current directory is a project root
+# If it is, we just init a git repo without prompting
+is_project_root() (
+  for indicator in "${DEFAULT_INDICATORS[@]}"; do
+    [[ -e "$indicator" ]] && return 0
+  done
+  return 1
+)
+
+# Init a git repo, if need be.  Aider works best in a git repo
+init_git_repo() (
+  local is_project_root=1
+
+  set +e
+  is_project_root
+  is_project_root=$?
+  set -e
+
+  if (( is_project_root != 0 )); then
+    if prompt_yes_no "aiderw: Not a git repo. Run git init?"; then
+      is_project_root=0
+    fi
+  fi
+
+  if (( is_project_root == 0 )); then
+    _log "aiderw: running git init"
+    git init
+  else
+    _log "aiderw: Please run this in a git repo. Exiting..."
+    exit 0
+  fi
+)
+
+# Download a fresh-off-the-presses aider config file
+download_fresh_aider_config() {
+  local url="https://raw.githubusercontent.com/Aider-AI/aider/refs/heads/main/aider/website/assets/sample.aider.conf.yml"
+  local output_file="$1"
+
+  curl -sS -o "${output_file}" "${url}"
+
+  # Note: we need to uncomment at least one key before aider will load the file
+  sed -i '' -e 's/#map-refresh: auto/map-refresh: auto/g' "${output_file}"
+
+  _log "aiderw: Fetched fresh aider config.  I highly recommend customizing this (you can use aider)"
+}
+
+# Set up an aider root config in ~ if it's missing
+check_aider_root_config() (
+  [[ -f $HOME/.aider.conf.yml ]] && return
+  _log "aiderw: Did not find aider config file at ~/.aider.conf.yml.  Downloading a freshie"
+  download_fresh_aider_config "${HOME}/.aider.conf.yml"
+)
+
+# Copy a template aider project-level config (goes in repo root)
+check_aider_project_config() (
+  [[ -f ".aider.conf.yml" ]] && return
+  _log "aiderw: Did not find project-level aider config file.  Downloading a freshie"
+  download_fresh_aider_config ".aider.conf.yml"
+)
+
+# Print our fun little banner
+echo -e "\e[91ma \e[92mi \e[93md \e[94me \e[95mr \e[96mw\e[0m"
+
+_log "Checking setup & launching aider"
+
+# Run aider in root of git repo, if we're in one
+git rev-parse --is-inside-work-tree &>/dev/null && change_to_git_root
+
+# Initialize a git repo, if we're not in one
+! git rev-parse --is-inside-work-tree &>/dev/null && init_git_repo
+
+# Copy aider root config if missing
+check_aider_root_config
+
+# Copy aider project config if missing
+check_aider_project_config
+
+aider "$@"
+
+_log "Goodbye"
