@@ -47,15 +47,73 @@ change_to_git_root() {
   fi
 }
 
-move_aider_files() {
+move_aider_files() (
   # make .aider dir
   mkdir -p .aider
 
   # Move aider files into .aider
   for file in .aider*
   do
-    [[ -f $file && $file != ".aider.conf.yml" ]] && mv -f "$file" ".aider/${file#.}"
+    if [[ -f $file && $file != ".aider.conf.yml" ]]; then
+      mv -f "$file" ".aider/${file#.}" || true
+    fi
   done
+)
+
+
+# Function to check if any config key has a value starting with '.aider/'
+is_aider_path_configured() {
+  local config_keys=("model-settings-file" "model-metadata-file" "input-history-file" "chat-history-file" "llm-history-file" "analytics-log")
+  local user_config="$HOME/.aider.conf.yml"
+  local project_config=".aider.conf.yml"
+
+  # Check both project-level and user-level config files
+  for config_file in "$project_config" "$user_config"; do
+    if [[ -f $config_file ]]; then
+      for key in "${config_keys[@]}"; do
+        # Check if the key is uncommented and its value starts with '.aider/'
+        if grep -qE "^\s*${key}:\s*\.aider/" "$config_file"; then
+          return 0
+        fi
+      done
+    fi
+  done
+
+  return 1
+}
+
+# Function to update config keys with default values prepended by '.aider/'
+update_aider_paths() {
+  local config_keys=("model-settings-file" "model-metadata-file" "input-history-file" "chat-history-file" "llm-history-file" "analytics-log")
+  local default_values=(".aider.model.settings" ".aider.model.metadata" ".aider.input.history" ".aider.chat.history.md" ".aider.llm.history" ".aider.analytics.log")
+  local user_config="$HOME/.aider.conf.yml"
+  local project_config=".aider.conf.yml"
+
+  # Check both project-level and user-level config files
+  for config_file in "$project_config" "$user_config"; do
+    if [[ -f $config_file ]]; then
+      for i in "${!config_keys[@]}"; do
+        local key="${config_keys[i]}"
+        local default_value="${default_values[i]}"
+        # Uncomment and set the default value if not already set
+        if ! grep -qE "^\s*${key}:\s*\.aider/" "$config_file"; then
+          sed -i.bak -E "s|#?\s*(${key}:\s*).*|\1${default_value}|" "$config_file"
+        fi
+      done
+    fi
+  done
+}
+
+# Function to prompt user before making modifications
+update_aider_paths() {
+  if ! is_aider_path_configured; then
+    if prompt_yes_no "aiderw: Some configuration keys are not set to use '.aider/' paths. Would you like to update them?"; then
+      update_aider_paths
+      _log "aiderw: Configuration files updated with default '.aider/' paths."
+    else
+      _log "aiderw: No changes made to configuration files."
+    fi
+  fi
 }
 
 # Default indicators for a project root
@@ -146,6 +204,12 @@ git rev-parse --is-inside-work-tree &>/dev/null && change_to_git_root
 
 # Initialize a git repo, if we're not in one
 ! git rev-parse --is-inside-work-tree &>/dev/null && init_git_repo
+
+# Update aider paths if necessary
+update_aider_paths
+
+# Move aider files if necessary
+move_aider_files
 
 # Copy aider root config if missing
 check_aider_root_config
