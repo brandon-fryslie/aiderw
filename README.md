@@ -31,9 +31,9 @@ After adding the alias, reload your shell configuration or restart your terminal
 
 ## How It Works
 
-1. **Wrapper Logic**: The script can be bypassed with the `--bare` option, allowing direct execution of `aider`.
-2. **Setup Checks**: It ensures that the necessary configuration files are in place and that the script is running in a suitable environment.
-3. **Execution**: After setup, the script runs `aider` with any provided arguments.
+1. **Wrapper Logic**: The script can be bypassed with the `--bare` option, allowing direct execution of `aider`.  You can also run it like this: `\aider ...` to execute the original binary.  This is only necessary if you aliased 'aiderw' to 'aider'.
+2. **Setup Checks**: It ensures that aider's configuration file is in place and that the script is running in a suitable environment.
+3. **Execution**: After setup, the script runs `aiderw` (or `aider`, with alias configured) with any provided arguments.
 
 ## Contributing
 
@@ -41,4 +41,4 @@ Contributions are welcome! Please feel free to submit a pull request or open an 
 
 ## License
 
-This project is licensed under the [Your License] License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
