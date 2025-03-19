@@ -1,8 +1,11 @@
 # Aiderw Script
 
+
 ## Overview
 
 This repository contains the `aiderw` script, a small wrapper around the `aider` tool. The script is designed to enhance the user experience by providing additional setup and configuration management for `aider`, ensuring it runs smoothly within a Git repository environment.
+
+[Aider Project](https://github.com/paul-gauthier/aider)
 
 ## Features
 
@@ -42,3 +45,7 @@ Contributions are welcome! Please feel free to submit a pull request or open an 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Related Projects
+
+- [Aider Project](https://github.com/paul-gauthier/aider): Aider is a tool designed to assist developers by providing AI-driven code suggestions and improvements, helping streamline the coding process and enhance productivity.
