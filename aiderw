@@ -181,7 +181,7 @@ download_fresh_aider_config() {
   # Note: we need to uncomment at least one key before aider will load the file
   sed -i '' -e 's/#map-refresh: auto/map-refresh: auto/g' "${output_file}"
 
-  _log "aiderw: Fetched fresh aider config.  I highly recommend customizing this (you can use aider)"
+  _log "aiderw: Fetched fresh aider config for the project"
 }
 
 # Set up an aider root config in ~ if it's missing
