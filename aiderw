@@ -2,7 +2,7 @@
 
 # Allow skipping the wrapper logic entirely
 # Users can also just enter \aider in the terminal, if this is installed as aiderw and 'alias aider=aiderw' is used
-[[ "$1" == "--bare" ]] && { shift; \aider "$@"; exit $?; }
+[[ "$1" == "--bare" ]] && { shift; exec \aider "$@"; }
 
 # Exit on error
 set -e
@@ -29,6 +29,10 @@ trap 'cleanup $?' EXIT
 
 # prompt a user for yes or no, and force em to make a valid choice
 prompt_yes_no() (
+  # Return automatically in non-interactive mode (tests)
+  [[ $AIDERW_NON_INTERACTIVE_RESPONSE == "YES" ]] && return 0
+  [[ $AIDERW_NON_INTERACTIVE_RESPONSE == "NO" ]] && return 1
+
   local prompt_message="$1"
   local response
   while true; do
@@ -85,7 +89,7 @@ is_aider_path_configured() {
 # Function to update config keys with default values prepended by '.aider/'
 update_aider_paths() {
   local config_keys=("model-settings-file" "model-metadata-file" "input-history-file" "chat-history-file" "llm-history-file" "analytics-log")
-  local default_values=(".aider.model.settings" ".aider.model.metadata" ".aider.input.history" ".aider.chat.history.md" ".aider.llm.history" ".aider.analytics.log")
+  local default_values=("aider.model.settings" "aider.model.metadata" "aider.input.history" "aider.chat.history.md" "aider.llm.history" "aider.analytics.log")
   local user_config="$HOME/.aider.conf.yml"
   local project_config=".aider.conf.yml"
 
@@ -94,7 +98,7 @@ update_aider_paths() {
     if [[ -f $config_file ]]; then
       for i in "${!config_keys[@]}"; do
         local key="${config_keys[i]}"
-        local default_value="${default_values[i]}"
+        local default_value=".aider/${default_values[i]}"
         # Uncomment and set the default value if not already set
         if ! grep -qE "^\s*${key}:\s*\.aider/" "$config_file"; then
           sed -i.bak -E "s|#?\s*(${key}:\s*).*|\1${default_value}|" "$config_file"
@@ -217,6 +221,4 @@ check_aider_root_config
 # Copy aider project config if missing
 check_aider_project_config
 
-aider "$@"
-
-_log "Goodbye"
+exec \aider "$@"
